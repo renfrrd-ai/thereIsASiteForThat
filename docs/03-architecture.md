@@ -103,7 +103,7 @@ Auth.js, `users`, `bookmarks`, `saved_searches` and `/me/*` all exist and work. 
 |---|---|
 | Local | Next.js + Supabase pooler `DATABASE_URL` |
 | Preview | Vercel preview + same or staging Supabase |
-| Production | Vercel + Supabase; `NEXT_PUBLIC_SITE_URL=https://thereisasiteforthat.com` |
+| Production | Vercel + Supabase; `NEXT_PUBLIC_SITE_URL` unset, defaults to `https://www.thereisasiteforthat.com` in `getSiteUrl()` |
 
 ## 6. Env Vars (expected)
 
