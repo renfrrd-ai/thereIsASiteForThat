@@ -19,13 +19,8 @@ export function getSearchConfidenceThreshold(): number {
  * chat app. The domain is not a secret and it does not change per deploy, so
  * it lives in the code where it is version controlled and reviewable.
  */
-/**
- * The apex redirects here (a 308 to www), not the other way around. Pointing
- * canonical URLs at the apex meant every URL in the sitemap made a search
- * engine follow a redirect to reach the page it was already told was
- * canonical, which a Semrush crawl flagged directly.
- */
-const PRODUCTION_SITE_URL = "https://www.thereisasiteforthat.com";
+/** The host that actually serves. The www subdomain redirects here, so this is canonical. */
+const PRODUCTION_SITE_URL = "https://thereisasiteforthat.com";
 
 const LOCAL_HOST = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?$/i;
 
