@@ -67,6 +67,29 @@ Cost control: one run per normalized query, cached for `SEARCH_DISCOVERY_TTL_DAY
 
 Tune after seeding with a labeled eval set of ~50 queries.
 
+### Relevance floor
+
+`SEARCH_MIN_SIMILARITY = 0.45` (cosine similarity)
+
+Where the threshold above decides "is this good enough to stop looking",
+this decides "is this worth showing at all". Below it a vector match is
+dropped rather than listed.
+
+It exists because the floor used to be 0.05, which is no floor: a search for
+"write a business plan" answered with a blogging tool, a fiction writing app
+and a resume builder at 27 to 29% confidence, all rendered as ranked answers
+with Visit buttons. The page could not report finding nothing, so it padded
+itself with noise.
+
+Two things are deliberately exempt:
+
+- **Discovered sites**, which carry a fixed confidence rather than a cosine
+  score, so the comparison would mean nothing.
+- **Keyword and seed results**, scored by pg_trgm and a hand-rolled term
+  match on an entirely different scale, where an exact `searchText` hit is
+  worth 0.4. Judging those against a cosine floor would discard good matches.
+  They keep the old permissive cut.
+
 ---
 
 ## 3. Confidence Score Display

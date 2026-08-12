@@ -18,6 +18,8 @@ export type SearchMode =
   | "keyword"
   | "ai_inferred"
   | "discovered"
+  /** The assist step was attempted and did not come back. Not the same as "weak". */
+  | "assist_failed"
   | "empty"
   | "unavailable";
 

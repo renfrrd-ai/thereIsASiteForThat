@@ -1,5 +1,6 @@
 import { scoreSeedSearch } from "@/lib/catalog/seed-catalog";
 import {
+  getMinHitSimilarity,
   getSearchConfidenceThreshold,
   hasOpenAIConfigured,
   isDiscoveryEnabled,
@@ -52,6 +53,8 @@ export type SearchResponseData = {
     | "keyword"
     | "ai_inferred"
     | "discovered"
+    /** The assist step was attempted and did not come back. Not the same as "weak". */
+    | "assist_failed"
     | "empty"
     | "unavailable";
   results: SearchResultItem[];
@@ -60,6 +63,14 @@ export type SearchResponseData = {
 };
 
 const RAG_CANDIDATE_LIMIT = 12;
+/**
+ * Floor for the keyword and seed paths only.
+ *
+ * Those score with pg_trgm and a hand-rolled term match, not cosine distance,
+ * so they sit on a different scale entirely: an exact searchText match is
+ * worth 0.4 there. Judging them against the vector floor would throw away
+ * good keyword hits, so they keep the old permissive cut.
+ */
 const MIN_HIT_SIMILARITY = 0.05;
 /** Below this, a catalog hit ranks under a fresh find from the open web. */
 const WEAK_CANDIDATE_SIMILARITY = 0.6;
@@ -257,14 +268,28 @@ async function applyRagFallback(
     };
   }
 
+  /**
+   * The model was asked and did not answer.
+   *
+   * This used to return the same "no strong curated match" wording as the fast
+   * path above, which made a broken model call indistinguishable from one we
+   * deliberately never made: same mode, same sentence, same rows. Nobody could
+   * tell how often the assist was failing, including us. It gets its own mode
+   * so the page can say something true and so the two show up separately in
+   * anything that reads mode later.
+   */
+  console.error(
+    `Search assist failed, falling back to raw catalog ranking. query=${JSON.stringify(query)} candidates=${candidates.length}`,
+  );
+
   if (candidates.length > 0) {
     return {
       hits: candidates,
       discoveredIds: new Set(),
-      mode: "soft",
+      mode: "assist_failed",
       source: "curated",
       aiSummary:
-        "No strong curated match yet. Closest catalog sites below.",
+        "The assist step did not finish, so this is the plain catalog ranking. Searching again usually fixes it.",
     };
   }
 
@@ -345,7 +370,12 @@ export async function searchSites(input: {
   let source: SearchResultItem["source"] = "curated";
   let mode: SearchResponseData["mode"] = "curated";
   let aiSummary: string | null = null;
-  let skipSimilarityFloor = false;
+  /**
+   * Whether these hits carry cosine similarity, which is the only scale the
+   * vector floor is calibrated for. Keyword and seed results are scored by a
+   * different measure and are judged against MIN_HIT_SIMILARITY instead.
+   */
+  let vectorRanked = false;
   let discoveredIds = new Set<string>();
 
   try {
@@ -363,7 +393,6 @@ export async function searchSites(input: {
             source = fallback.source;
             mode = fallback.mode;
             aiSummary = fallback.aiSummary;
-            skipSimilarityFloor = true;
           } else {
             hits = seedHits(query, limit);
             source = "keyword";
@@ -378,6 +407,7 @@ export async function searchSites(input: {
             "Showing catalog matches. Add embeddings later for stronger semantic ranking.";
         }
       } else {
+        vectorRanked = true;
         const embedding = await getQueryEmbedding(query);
         const candidateLimit = Math.max(limit, RAG_CANDIDATE_LIMIT);
         const candidates = await searchPublishedByEmbedding(
@@ -398,8 +428,6 @@ export async function searchSites(input: {
           mode = rag.mode;
           source = rag.source;
           aiSummary = rag.aiSummary;
-          skipSimilarityFloor =
-            rag.mode === "ai_inferred" || rag.mode === "discovered";
         }
       }
     } else {
@@ -429,8 +457,14 @@ export async function searchSites(input: {
         : "Search is temporarily unavailable.";
   }
 
+  /**
+   * A site the model went and found for this exact query is never measured
+   * against the catalog floor. It carries a fixed confidence rather than a
+   * cosine score, so the comparison would be meaningless.
+   */
+  const floor = vectorRanked ? getMinHitSimilarity() : MIN_HIT_SIMILARITY;
   const results = hits
-    .filter((hit) => skipSimilarityFloor || hit.similarity > MIN_HIT_SIMILARITY)
+    .filter((hit) => discoveredIds.has(hit.id) || hit.similarity >= floor)
     .map((hit) =>
       toResult(hit, discoveredIds.has(hit.id) ? "ai_discovered" : source),
     );
@@ -445,12 +479,27 @@ export async function searchSites(input: {
     });
   }
 
+  /**
+   * The floor can empty a list that had rows in it a moment ago, and a page
+   * headed "Closest" with nothing under it reads as a bug. A failed assist
+   * keeps its own mode either way: that it found nothing is the less useful
+   * half of what happened.
+   */
+  const nothingLeft = results.length === 0;
+  const finalMode =
+    nothingLeft && mode !== "assist_failed" && mode !== "unavailable"
+      ? "empty"
+      : mode;
+
   return {
     query,
     slug,
-    mode: results.length === 0 && mode === "curated" ? "empty" : mode,
+    mode: finalMode,
     results,
-    aiSummary,
+    aiSummary:
+      nothingLeft && finalMode === "empty"
+        ? "Nothing in the catalog is close enough to be worth showing. Try describing the task differently."
+        : aiSummary,
     threshold,
   };
 }

@@ -108,12 +108,24 @@ export async function recommendFromCandidates(
       }),
       maxTokens: 550,
     });
+    /**
+     * Both of these used to return null without a word, which is why nobody
+     * could tell an empty completion from malformed JSON from a thrown error:
+     * all three arrived at the caller as the same silent null. They are logged
+     * apart because the fix differs for each.
+     */
     if (!content) {
+      console.error(
+        `RAG returned no content. query=${JSON.stringify(query)}`,
+      );
       return null;
     }
 
     const parsed = ragResponseSchema.safeParse(extractJsonObject(content));
     if (!parsed.success) {
+      console.error(
+        `RAG response did not match the schema. query=${JSON.stringify(query)} issues=${JSON.stringify(parsed.error.issues.slice(0, 3))}`,
+      );
       return null;
     }
 
