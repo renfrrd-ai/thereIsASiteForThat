@@ -148,7 +148,7 @@ You can deploy the code before running it. Every vote read is wrapped, so an un-
 ## 5. Deploy (Vercel / similar)
 
 1. Push to GitHub → import project  
-2. Set env: `DATABASE_URL` (pooler), `OPENAI_*`, `ADMIN_*`, `AUTH_*`, `NEXT_PUBLIC_SITE_URL=https://thereisasiteforthat.com`  
+2. Set env: `DATABASE_URL` (pooler), `OPENAI_*`, `ADMIN_*`, `AUTH_*`. Leave `NEXT_PUBLIC_SITE_URL` unset in production — the apex domain redirects to `www`, and `getSiteUrl()` already defaults to the correct `https://www.thereisasiteforthat.com` on its own. Setting this variable overrides that default, so only set it if the canonical domain ever changes.  
 3. Run `npm run db:migrate` against production so `site_votes` exists  
 4. Run migrate/seed/embed against the **prod** DB if it is not the same Supabase project as local  
 
