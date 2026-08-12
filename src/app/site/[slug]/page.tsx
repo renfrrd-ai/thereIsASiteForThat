@@ -73,22 +73,29 @@ export default async function SitePage({ params }: SitePageProps) {
       "@type": "Offer",
       category: pricingLabel(site.pricing),
     },
-    aggregateRating:
-      verdict.solveRate !== null
-        ? {
+    /**
+     * Only real community verdicts earn rating markup.
+     *
+     * The editor score used to fill in here whenever a site was short of the
+     * three votes a verdict needs, which is nearly all of them, as an
+     * AggregateRating of exactly one rating. An aggregate of one, assigned by
+     * us rather than by users, is the self-serving pattern Google's structured
+     * data policy names, and it was being served on 700+ pages at once. Those
+     * snippets earned 70% of our impressions and no clicks at all, because
+     * position 40 converts nothing, so the trade was pure risk. A page with
+     * too few verdicts now simply claims no rating.
+     */
+    ...(verdict.solveRate !== null
+      ? {
+          aggregateRating: {
             "@type": "AggregateRating",
             ratingValue: Number(((verdict.solveRate / 100) * 5).toFixed(1)),
             bestRating: 5,
             worstRating: 1,
             ratingCount: verdict.total,
-          }
-        : {
-            "@type": "AggregateRating",
-            ratingValue: site.rating,
-            bestRating: 5,
-            worstRating: 1,
-            ratingCount: 1,
           },
+        }
+      : {}),
     mainEntityOfPage: absoluteUrl(siteUrl, `/site/${site.slug}`),
   };
 
