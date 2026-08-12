@@ -85,6 +85,7 @@ AUTH_GOOGLE_SECRET=...    # only when you switch accounts back on
 VOTE_SECRET=...           # optional; falls back to AUTH_SECRET, then ADMIN_SESSION_SECRET
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SEARCH_CONFIDENCE_THRESHOLD=0.78
+SEARCH_MIN_SIMILARITY=0.45   # vector floor; below this a match is dropped, not shown
 ```
 
 ### Google Cloud Console

@@ -28,6 +28,8 @@ function modeLabel(mode: SearchMode): string {
       return "AI inferred";
     case "discovered":
       return "Found for you";
+    case "assist_failed":
+      return "Catalog only";
     case "empty":
       return "No matches";
     case "unavailable":

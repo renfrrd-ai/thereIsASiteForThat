@@ -10,6 +10,25 @@ export function getSearchConfidenceThreshold(): number {
 }
 
 /**
+ * How close a vector match must be before it counts as an answer at all.
+ *
+ * Only the embedding path is measured on this scale. Cosine similarity below
+ * roughly 0.45 means the query and the site are barely about the same thing,
+ * and a search for "write a business plan" was answering with a blogging tool
+ * and a novel-writing app at 27%, because the old floor was 0.05 and let
+ * everything through. A page that admits it found nothing beats one that pads
+ * itself to ten rows with noise.
+ *
+ * Tunable without a deploy: the right cut depends on the catalog and on the
+ * queries it actually receives, neither of which stays still.
+ */
+export function getMinHitSimilarity(): number {
+  const raw = optional("SEARCH_MIN_SIMILARITY");
+  const parsed = raw ? Number.parseFloat(raw) : 0.45;
+  return Number.isFinite(parsed) ? parsed : 0.45;
+}
+
+/**
  * The live domain, hardcoded on purpose.
  *
  * Canonical URLs, the sitemap, and every social card image are absolute, so
