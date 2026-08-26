@@ -27,6 +27,7 @@ Everything written down about **thereisasiteforthat.com**.
 | [09-decisions.md](./09-decisions.md) | Why things are the way they are |
 | [10-setup.md](./10-setup.md) | How to run it |
 | [11-user-accounts-features.md](./11-user-accounts-features.md) | The accounts feature, and why it is switched off |
+| [12-contributing.md](./12-contributing.md) | How to send a change here |
 
 ## Where the project stands
 
